@@ -2,6 +2,18 @@ import streamlit as st
 import pandas as pd
 import os
 
+# --- Helper Function for Price Calculation ---
+def calculate_net_price(val):
+    """Calculates Net Amount by dividing by 1.12 and formatting to 6 decimals."""
+    if pd.isna(val) or str(val).strip() == '':
+        return ''
+    try:
+        # Formula: Net Amount = Gross / 1.12
+        net_amount = float(val) / 1.12
+        return f"{net_amount:.6f}"
+    except (ValueError, TypeError):
+        return str(val)
+
 st.set_page_config(page_title="POS Template Converter", page_icon="📊", layout="centered")
 
 st.title("POSIST to HLX Template Converter")
@@ -85,7 +97,10 @@ if uploaded_file is not None:
         pos_categories = df_active['Category'].fillna('').tolist()
         taxes_short_names = ['VAT'] * len(df_active)
         pos_attributes = [''] * len(df_active)
-        prices = df_active['Price_Value'].fillna('').tolist()
+        
+        # Apply the new Price Calculation Logic here
+        prices = [calculate_net_price(val) for val in df_active['Price_Value']]
+        
         nc_values = [''] * len(df_active)
         unit_short_names = ['Unit'] * len(df_active)
         kitchen_codes = ['KIT'] * len(df_active)
@@ -125,4 +140,4 @@ if uploaded_file is not None:
         
     except Exception as e:
         st.error(f"An error occurred while processing the file: {e}")
-        st.exception(e) 
+        st.exception(e)
