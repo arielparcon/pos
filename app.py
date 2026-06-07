@@ -2,21 +2,9 @@ import streamlit as st
 import pandas as pd
 import os
 
-# --- Helper Function for Price Calculation ---
-def calculate_net_price(val):
-    """Calculates Net Amount by dividing by 1.12 and formatting to 6 decimals."""
-    if pd.isna(val) or str(val).strip() == '':
-        return ''
-    try:
-        # Formula: Net Amount = Gross / 1.12
-        net_amount = float(val) / 1.12
-        return f"{net_amount:.6f}"
-    except (ValueError, TypeError):
-        return str(val)
+st.set_page_config(page_title="POS Template Converter", layout="centered")
 
-st.set_page_config(page_title="POS Template Converter", page_icon="📊", layout="centered")
-
-st.title("POSIST to HLX Template Converter")
+st.title("POS Template Converter")
 st.markdown("""
 INSTRUCTIONS:
 1. Export the food items of the branch from the POSIST first.
@@ -24,14 +12,23 @@ INSTRUCTIONS:
 3. Use the downloaded CSV file to migrate the active food items into HLX.
 """)
 
-uploaded_file = st.file_uploader("Please upload your POSist CSV file below.", type=["csv"])
+def calculate_net_price(val):
+    if pd.isna(val) or str(val).strip() == '':
+        return '0' 
+    try:
+        net_amount = float(val) / 1.12
+        return f"{net_amount:.6f}"
+    except (ValueError, TypeError):
+        return '0'
+
+uploaded_file = st.file_uploader("Choose your CSV file", type=["csv"])
 
 if uploaded_file is not None:
     st.success("File uploaded successfully!")
-
+  
     uploaded_filename = uploaded_file.name
     filename_without_ext = os.path.splitext(uploaded_filename)[0]
-
+ 
     if '_' in filename_without_ext:
         prefix = filename_without_ext.split('_')[0]
     else:
@@ -44,7 +41,7 @@ if uploaded_file is not None:
         
         first_cell = str(df_temp.iloc[0, 0]).lower().strip()
         has_headers = first_cell in ['item name', 'item', 'name', 'product', 'product name']
-        
+
         uploaded_file.seek(0)
         
         if has_headers:
@@ -57,28 +54,24 @@ if uploaded_file is not None:
             if missing_cols:
                 st.error(f"Missing required columns in your file: {', '.join(missing_cols)}")
                 st.stop()
-       
-            df_named = pd.DataFrame({
-                'Item Name': df['Item Name'],
-                'Category': df['Category'],
-                'Status': df['Status'],
-                'Price_Value': df.iloc[:, 4]
-            })
         else:
-
             uploaded_file.seek(0)
             df = pd.read_csv(uploaded_file, header=None)
-
+            
             if df.shape[1] < 5:
-                st.error(f"Your file must have at least 5 columns. Currently has: {df.shape[1]}")
+                st.error(f" Your file must have at least 5 columns. Currently has: {df.shape[1]}")
                 st.stop()
 
-            df_named = pd.DataFrame({
-                'Item Name': df.iloc[:, 1],  
-                'Category': df.iloc[:, 2],   
-                'Status': df.iloc[:, 3],     
-                'Price_Value': df.iloc[:, 4]  
-            })
+        num_cols = df.shape[1]
+
+        df_named = pd.DataFrame({
+            'Item Name': df.iloc[:, 1],
+            'Category': df.iloc[:, 2],
+            'Status': df.iloc[:, 3],
+            'Price_5': df.iloc[:, 4],
+            'Price_15': df.iloc[:, 14] if num_cols > 14 else [None] * len(df),
+            'Price_20': df.iloc[:, 19] if num_cols > 19 else [None] * len(df)
+        })
 
         df_active = df_named[df_named['Status'].astype(str).str.strip().str.lower() == 'active'].copy()
         
@@ -87,9 +80,44 @@ if uploaded_file is not None:
             st.stop()
             
         st.info(f"Found **{len(df_active)}** active items ready for conversion.")
+        st.caption(f"Output file will be: **{output_filename}**")
+
+        warnings_list = []
+        prices = []
+
+        for index, row in df_active.iterrows():
+            p5 = row['Price_5']
+            p15 = row['Price_15']
+            p20 = row['Price_20']
+            item_name = row['Item Name']
+
+            is_empty_5 = pd.isna(p5) or str(p5).strip() == ''
+            is_empty_15 = pd.isna(p15) or str(p15).strip() == '' if p15 is not None else True
+            is_empty_20 = pd.isna(p20) or str(p20).strip() == '' if p20 is not None else True
+
+            if not is_empty_5:
+                final_price = p5
+            elif not is_empty_15:
+                final_price = p15
+            elif not is_empty_20:
+                final_price = p20
+            else:
+                final_price = '' 
+
+            if not is_empty_15 and not is_empty_20:
+                try:
+                    if float(p15) != float(p20):
+                        msg = f"The lobby rates (15th column) and the Drive-in rates (20th column) shows unmatched data for this item ({item_name}), it requires manual intervention to update the rates of the item"
+                        warnings_list.append(msg)
+                except (ValueError, TypeError):
+                    pass 
+            prices.append(calculate_net_price(final_price))
+
+        if warnings_list:
+            st.warning("**Rate Mismatch Detected:**\n\n" + "\n\n".join(warnings_list))
 
         product_ids = ['RMS' + str(i).zfill(3) for i in range(1, len(df_active) + 1)]
- 
+
         featured_products = ['N'] * len(df_active)
         pos_point_names = ['RMS'] * len(df_active)
         pos_product_names = df_active['Item Name'].fillna('').tolist()
@@ -97,15 +125,11 @@ if uploaded_file is not None:
         pos_categories = df_active['Category'].fillna('').tolist()
         taxes_short_names = ['VAT'] * len(df_active)
         pos_attributes = [''] * len(df_active)
-        
-        # Apply the new Price Calculation Logic here
-        prices = [calculate_net_price(val) for val in df_active['Price_Value']]
-        
         nc_values = [''] * len(df_active)
         unit_short_names = ['Unit'] * len(df_active)
         kitchen_codes = ['KIT'] * len(df_active)
         statuses = ['A'] * len(df_active)
-        
+
         new_df = pd.DataFrame({
             'Featured Product': featured_products,
             'Pos Point Short Name': pos_point_names,
@@ -131,7 +155,7 @@ if uploaded_file is not None:
             st.caption(f"... and {len(new_df) - 10} more rows.")
 
         st.download_button(
-            label="Download Converted CSV",
+            label="⬇️ Download Converted CSV",
             data=csv_data,
             file_name=output_filename,
             mime="text/csv",
@@ -139,5 +163,5 @@ if uploaded_file is not None:
         )
         
     except Exception as e:
-        st.error(f"An error occurred while processing the file: {e}")
+        st.error(f" An error occurred while processing the file: {e}")
         st.exception(e)
