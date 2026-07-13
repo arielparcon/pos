@@ -7,9 +7,9 @@ st.set_page_config(page_title="POS Template Converter", layout="centered")
 st.title("POS Template Converter")
 st.markdown("""
 INSTRUCTIONS:
-1. Export the food items of the branch from POSIST first.
-2. Import the exported CSV file here and click on the "Download Converted CSV" button to get the HLX pos template.
-3. Use the downloaded CSV file to migrate the active food items into HLX.
+1. Export the food items of the branch from the POSIST first.
+2. Import the exported CSV file here and click on the "Download Converted CSV" buttons to get the HLX pos templates.
+3. Use the downloaded CSV files to migrate the active food items into HLX.
 """)
 
 def calculate_net_price(val):
@@ -20,6 +20,30 @@ def calculate_net_price(val):
         return f"{net_amount:.6f}"
     except (ValueError, TypeError):
         return '0'
+
+def generate_pos_template(df_subset, point_name):
+    """Helper function to generate the formatted POS dataframe for a specific outlet."""
+    if df_subset.empty:
+        return None
+    
+    prices = [calculate_net_price(row['Price']) for _, row in df_subset.iterrows()]
+    product_ids = [point_name + str(i).zfill(3) for i in range(1, len(df_subset) + 1)]
+    
+    return pd.DataFrame({
+        'Featured Product': ['N'] * len(df_subset),
+        'Pos Point Short Name': [point_name] * len(df_subset),
+        'Pos Product Name': df_subset['Item Name'].tolist(),
+        'Product Id': product_ids,
+        'Description': [''] * len(df_subset),
+        'Pos Categories': df_subset['Category'].tolist(),
+        'Taxes Short Name': ['VAT'] * len(df_subset),
+        'Pos Attributes': [''] * len(df_subset),
+        'Price': prices,
+        'NC value(%)': [''] * len(df_subset),
+        'Unit Short Name': ['Unit'] * len(df_subset),
+        'Kitchen Code': ['KIT'] * len(df_subset),
+        'Status': ['A'] * len(df_subset)
+    })
 
 uploaded_file = st.file_uploader("Choose your CSV file", type=["csv"])
 
@@ -34,7 +58,8 @@ if uploaded_file is not None:
     else:
         prefix = filename_without_ext
     
-    output_filename = f"{prefix}_pos_template.csv"
+    output_filename_rms = f"{prefix}_RoomService_pos_template.csv"
+    output_filename_misc = f"{prefix}_Miscellaneous_pos_template.csv"
 
     try:
         df_temp = pd.read_csv(uploaded_file, nrows=5)
@@ -56,9 +81,9 @@ if uploaded_file is not None:
 
         df_named = pd.DataFrame({
             'Item Name': df.iloc[:, 1],     
-            'Category': df.iloc[:, 5],     
-            'Status': df.iloc[:, 14],      
-            'Price': df.iloc[:, 4]        
+            'Category': df.iloc[:, 5],      
+            'Status': df.iloc[:, 14],       
+            'Price': df.iloc[:, 4]          
         })
 
         df_active = df_named[df_named['Status'].astype(str).str.strip().str.lower() == 'active'].copy()
@@ -67,63 +92,62 @@ if uploaded_file is not None:
             st.warning("No 'active' items found in the uploaded file. Please check the 15th column (Status).")
             st.stop()
             
-        st.info(f"Found **{len(df_active)}** active items ready for conversion.")
-        st.caption(f"Output file will be: **{output_filename}**")
-
-        prices = [calculate_net_price(row['Price']) for _, row in df_active.iterrows()]
+        st.info(f"Found **{len(df_active)}** total active items ready for conversion.")
 
         df_active['Item Name'] = df_active['Item Name'].fillna('').astype(str).str.strip()
         df_active['Category'] = df_active['Category'].fillna('').astype(str).str.strip()
+
+        df_active.loc[df_active['Item Name'].str.contains('extra', case=False, na=False), 'Category'] = 'Extra'
+
+        df_active.loc[df_active['Item Name'].str.lower().str.startswith('free'), 'Category'] = 'Free'
+
+        misc_categories = ['miscellaneous', 'free', 'extra']
+        is_misc = df_active['Category'].str.lower().str.strip().isin(misc_categories)
         
-        is_free_item = df_active['Item Name'].str.lower().str.startswith('free')
+        df_misc = df_active[is_misc].copy()
+        df_rms = df_active[~is_misc].copy() 
 
-        df_active.loc[is_free_item, 'Category'] = 'Free'
+        st.success(f"Split successful: **{len(df_rms)}** items for Room Service, **{len(df_misc)}** items for Miscellaneous.")
 
-        product_ids = ['RMS' + str(i).zfill(3) for i in range(1, len(df_active) + 1)]
+        df_rms_pos = generate_pos_template(df_rms, point_name='RMS')
+        df_misc_pos = generate_pos_template(df_misc, point_name='MISC')
 
-        featured_products = ['N'] * len(df_active)
-        pos_point_names = ['RMS'] * len(df_active)
-        pos_product_names = df_active['Item Name'].tolist()
-        descriptions = [''] * len(df_active)
-        pos_categories = df_active['Category'].tolist()
-        taxes_short_names = ['VAT'] * len(df_active)
-        pos_attributes = [''] * len(df_active)
-        nc_values = [''] * len(df_active)
-        unit_short_names = ['Unit'] * len(df_active)
-        kitchen_codes = ['KIT'] * len(df_active)
-        statuses = ['A'] * len(df_active)
+        tab1, tab2 = st.tabs(["🏨 Room Service Preview", "🧾 Miscellaneous Preview"])
 
-        new_df = pd.DataFrame({
-            'Featured Product': featured_products,
-            'Pos Point Short Name': pos_point_names,
-            'Pos Product Name': pos_product_names,
-            'Product Id': product_ids,
-            'Description': descriptions,
-            'Pos Categories': pos_categories,
-            'Taxes Short Name': taxes_short_names,
-            'Pos Attributes': pos_attributes,
-            'Price': prices,
-            'NC value(%)': nc_values,
-            'Unit Short Name': unit_short_names,
-            'Kitchen Code': kitchen_codes,
-            'Status': statuses
-        })
+        with tab1:
+            if df_rms_pos is not None and not df_rms_pos.empty:
+                st.dataframe(df_rms_pos.head(10))
+                if len(df_rms_pos) > 10:
+                    st.caption(f"... and {len(df_rms_pos) - 10} more rows.")
+                
+                csv_data_rms = df_rms_pos.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="⬇️ Download Room Service CSV",
+                    data=csv_data_rms,
+                    file_name=output_filename_rms,
+                    mime="text/csv",
+                    use_container_width=True
+                )
+            else:
+                st.warning("No items matched the criteria for Room Service.")
 
-        csv_data = new_df.to_csv(index=False).encode('utf-8')
-        
-        st.subheader("Preview of Converted Data")
-        st.dataframe(new_df.head(10))
-        
-        if len(new_df) > 10:
-            st.caption(f"... and {len(new_df) - 10} more rows.")
-
-        st.download_button(
-            label="⬇️ Download Converted CSV",
-            data=csv_data,
-            file_name=output_filename,
-            mime="text/csv",
-            use_container_width=True
-        )
+        with tab2:
+            if df_misc_pos is not None and not df_misc_pos.empty:
+                st.dataframe(df_misc_pos.head(10))
+                if len(df_misc_pos) > 10:
+                    st.caption(f"... and {len(df_misc_pos) - 10} more rows.")
+                
+                csv_data_misc = df_misc_pos.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="⬇️ Download Miscellaneous CSV",
+                    data=csv_data_misc,
+                    file_name=output_filename_misc,
+                    mime="text/csv",
+                    use_container_width=True,
+                    type="secondary"
+                )
+            else:
+                st.warning("No items matched the criteria for Miscellaneous (Free, Extra, or Miscellaneous).")
         
     except Exception as e:
         st.error(f"An error occurred while processing the file: {e}")
