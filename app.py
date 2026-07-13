@@ -7,7 +7,7 @@ st.set_page_config(page_title="POS Template Converter", layout="centered")
 st.title("POS Template Converter")
 st.markdown("""
 INSTRUCTIONS:
-1. Export the food items of the branch from the POSIST first.
+1. Export the food items of the branch from POSIST first.
 2. Import the exported CSV file here and click on the "Download Converted CSV" button to get the HLX pos template.
 3. Use the downloaded CSV file to migrate the active food items into HLX.
 """)
@@ -56,9 +56,9 @@ if uploaded_file is not None:
 
         df_named = pd.DataFrame({
             'Item Name': df.iloc[:, 1],     
-            'Category': df.iloc[:, 5],      
-            'Status': df.iloc[:, 14],       
-            'Price': df.iloc[:, 4]           
+            'Category': df.iloc[:, 5],     
+            'Status': df.iloc[:, 14],      
+            'Price': df.iloc[:, 4]        
         })
 
         df_active = df_named[df_named['Status'].astype(str).str.strip().str.lower() == 'active'].copy()
@@ -72,13 +72,20 @@ if uploaded_file is not None:
 
         prices = [calculate_net_price(row['Price']) for _, row in df_active.iterrows()]
 
+        df_active['Item Name'] = df_active['Item Name'].fillna('').astype(str).str.strip()
+        df_active['Category'] = df_active['Category'].fillna('').astype(str).str.strip()
+        
+        is_free_item = df_active['Item Name'].str.lower().str.startswith('free')
+
+        df_active.loc[is_free_item, 'Category'] = 'Free'
+
         product_ids = ['RMS' + str(i).zfill(3) for i in range(1, len(df_active) + 1)]
 
         featured_products = ['N'] * len(df_active)
         pos_point_names = ['RMS'] * len(df_active)
-        pos_product_names = df_active['Item Name'].fillna('').tolist()
+        pos_product_names = df_active['Item Name'].tolist()
         descriptions = [''] * len(df_active)
-        pos_categories = df_active['Category'].fillna('').tolist()
+        pos_categories = df_active['Category'].tolist()
         taxes_short_names = ['VAT'] * len(df_active)
         pos_attributes = [''] * len(df_active)
         nc_values = [''] * len(df_active)
