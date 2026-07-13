@@ -38,7 +38,6 @@ if uploaded_file is not None:
 
     try:
         df_temp = pd.read_csv(uploaded_file, nrows=5)
-        
         first_cell = str(df_temp.iloc[0, 0]).lower().strip()
         has_headers = first_cell in ['item name', 'item', 'name', 'product', 'product name']
 
@@ -46,75 +45,32 @@ if uploaded_file is not None:
         
         if has_headers:
             df = pd.read_csv(uploaded_file)
-            df.columns = df.columns.str.strip()
-            
-            required_cols = ['Item Name', 'Category', 'Status']
-            missing_cols = [col for col in required_cols if col not in df.columns]
-            
-            if missing_cols:
-                st.error(f"Missing required columns in your file: {', '.join(missing_cols)}")
-                st.stop()
         else:
-            uploaded_file.seek(0)
             df = pd.read_csv(uploaded_file, header=None)
-            
-            if df.shape[1] < 5:
-                st.error(f" Your file must have at least 5 columns. Currently has: {df.shape[1]}")
-                st.stop()
 
         num_cols = df.shape[1]
 
+        if num_cols < 15:
+            st.error(f"Your file must have at least 15 columns. Currently has: {num_cols}")
+            st.stop()
+
         df_named = pd.DataFrame({
-            'Item Name': df.iloc[:, 1],
-            'Category': df.iloc[:, 2],
-            'Status': df.iloc[:, 3],
-            'Price_5': df.iloc[:, 4],
-            'Price_15': df.iloc[:, 14] if num_cols > 14 else [None] * len(df),
-            'Price_20': df.iloc[:, 19] if num_cols > 19 else [None] * len(df)
+            'Item Name': df.iloc[:, 1],     
+            'Category': df.iloc[:, 5],      
+            'Status': df.iloc[:, 14],       
+            'Price': df.iloc[:, 4]           
         })
 
         df_active = df_named[df_named['Status'].astype(str).str.strip().str.lower() == 'active'].copy()
         
         if df_active.empty:
-            st.warning("No 'active' items found in the uploaded file. Please check your 'Status' column.")
+            st.warning("No 'active' items found in the uploaded file. Please check the 15th column (Status).")
             st.stop()
             
         st.info(f"Found **{len(df_active)}** active items ready for conversion.")
         st.caption(f"Output file will be: **{output_filename}**")
 
-        warnings_list = []
-        prices = []
-
-        for index, row in df_active.iterrows():
-            p5 = row['Price_5']
-            p15 = row['Price_15']
-            p20 = row['Price_20']
-            item_name = row['Item Name']
-
-            is_empty_5 = pd.isna(p5) or str(p5).strip() == ''
-            is_empty_15 = pd.isna(p15) or str(p15).strip() == '' if p15 is not None else True
-            is_empty_20 = pd.isna(p20) or str(p20).strip() == '' if p20 is not None else True
-
-            if not is_empty_5:
-                final_price = p5
-            elif not is_empty_15:
-                final_price = p15
-            elif not is_empty_20:
-                final_price = p20
-            else:
-                final_price = '' 
-
-            if not is_empty_15 and not is_empty_20:
-                try:
-                    if float(p15) != float(p20):
-                        msg = f"The lobby rates (15th column) and the Drive-in rates (20th column) shows unmatched data for this item ({item_name}), it requires manual intervention to update the rates of the item"
-                        warnings_list.append(msg)
-                except (ValueError, TypeError):
-                    pass 
-            prices.append(calculate_net_price(final_price))
-
-        if warnings_list:
-            st.warning("**Rate Mismatch Detected:**\n\n" + "\n\n".join(warnings_list))
+        prices = [calculate_net_price(row['Price']) for _, row in df_active.iterrows()]
 
         product_ids = ['RMS' + str(i).zfill(3) for i in range(1, len(df_active) + 1)]
 
@@ -138,7 +94,7 @@ if uploaded_file is not None:
             'Description': descriptions,
             'Pos Categories': pos_categories,
             'Taxes Short Name': taxes_short_names,
-            ' Pos Attributes': pos_attributes,
+            'Pos Attributes': pos_attributes,
             'Price': prices,
             'NC value(%)': nc_values,
             'Unit Short Name': unit_short_names,
@@ -163,5 +119,5 @@ if uploaded_file is not None:
         )
         
     except Exception as e:
-        st.error(f" An error occurred while processing the file: {e}")
+        st.error(f"An error occurred while processing the file: {e}")
         st.exception(e)
