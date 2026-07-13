@@ -91,8 +91,6 @@ if uploaded_file is not None:
         if df_active.empty:
             st.warning("No 'active' items found in the uploaded file. Please check the 15th column (Status).")
             st.stop()
-            
-        st.info(f"Found **{len(df_active)}** total active items ready for conversion.")
 
         df_active['Item Name'] = df_active['Item Name'].fillna('').astype(str).str.strip()
         df_active['Category'] = df_active['Category'].fillna('').astype(str).str.strip()
