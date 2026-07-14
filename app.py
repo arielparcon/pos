@@ -7,7 +7,7 @@ st.set_page_config(page_title="POS Template Converter", layout="centered")
 st.title("POS Template Converter")
 st.markdown("""
 INSTRUCTIONS:
-1. Export the food items of the branch from the POSIST first.
+1. Export the food items of the branch from POSIST first.
 2. Import the exported CSV file here and click on the "Download Converted CSV" buttons to get the HLX pos templates.
 3. Use the downloaded CSV files to migrate the active food items into HLX.
 """)
@@ -25,8 +25,8 @@ def generate_pos_template(df_subset, point_name):
     """Helper function to generate the formatted POS dataframe for a specific outlet."""
     if df_subset.empty:
         return None
-    
-    prices = [calculate_net_price(row['Price']) for _, row in df_subset.iterrows()]
+
+    prices = df_subset['Final_Price'].tolist()
     product_ids = [point_name + str(i).zfill(3) for i in range(1, len(df_subset) + 1)]
     
     return pd.DataFrame({
@@ -75,15 +75,16 @@ if uploaded_file is not None:
 
         num_cols = df.shape[1]
 
-        if num_cols < 15:
-            st.error(f"Your file must have at least 15 columns. Currently has: {num_cols}")
+        if num_cols < 17:
+            st.error(f"Your file must have at least 17 columns. Currently has: {num_cols}")
             st.stop()
 
         df_named = pd.DataFrame({
-            'Item Name': df.iloc[:, 1],     
-            'Category': df.iloc[:, 5],      
-            'Status': df.iloc[:, 14],       
-            'Price': df.iloc[:, 4]          
+            'Item Name': df.iloc[:, 1],   
+            'Category': df.iloc[:, 5],     
+            'Status': df.iloc[:, 14],   
+            'Price_5': df.iloc[:, 4],      
+            'Price_17': df.iloc[:, 16]    
         })
 
         df_active = df_named[df_named['Status'].astype(str).str.strip().str.lower() == 'active'].copy()
@@ -91,6 +92,8 @@ if uploaded_file is not None:
         if df_active.empty:
             st.warning("No 'active' items found in the uploaded file. Please check the 15th column (Status).")
             st.stop()
+            
+        st.info(f"Found **{len(df_active)}** total active items ready for conversion.")
 
         df_active['Item Name'] = df_active['Item Name'].fillna('').astype(str).str.strip()
         df_active['Category'] = df_active['Category'].fillna('').astype(str).str.strip()
@@ -103,7 +106,27 @@ if uploaded_file is not None:
         is_misc = df_active['Category'].str.lower().str.strip().isin(misc_categories)
         
         df_misc = df_active[is_misc].copy()
-        df_rms = df_active[~is_misc].copy() 
+        df_rms = df_active[~is_misc].copy()
+
+        final_prices = []
+        for _, row in df_active.iterrows():
+            cat = str(row['Category']).lower().strip()
+            p5 = row['Price_5']
+            p17 = row['Price_17']
+
+            if cat in misc_categories:
+                final_prices.append(calculate_net_price(p5))
+            else:
+                is_empty_17 = pd.isna(p17) or str(p17).strip() == ''
+                if not is_empty_17:
+                    final_prices.append(calculate_net_price(p17))
+                else:
+                    final_prices.append(calculate_net_price(p5))
+
+        df_active['Final_Price'] = final_prices
+
+        df_misc = df_active[is_misc].copy()
+        df_rms = df_active[~is_misc].copy()
 
         st.success(f"Split successful: **{len(df_rms)}** items for Room Service, **{len(df_misc)}** items for Miscellaneous.")
 
