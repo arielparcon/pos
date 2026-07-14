@@ -75,16 +75,17 @@ if uploaded_file is not None:
 
         num_cols = df.shape[1]
 
-        if num_cols < 17:
-            st.error(f"Your file must have at least 17 columns. Currently has: {num_cols}")
+        if num_cols < 29:
+            st.error(f"Your file must have at least 29 columns. Currently has: {num_cols}")
             st.stop()
 
         df_named = pd.DataFrame({
             'Item Name': df.iloc[:, 1],   
-            'Category': df.iloc[:, 5],     
-            'Status': df.iloc[:, 14],   
-            'Price_5': df.iloc[:, 4],      
-            'Price_17': df.iloc[:, 16]    
+            'Category': df.iloc[:, 5],    
+            'Status': df.iloc[:, 14],     
+            'Price_5': df.iloc[:, 4],   
+            'Price_17': df.iloc[:, 16],    
+            'Price_29': df.iloc[:, 28]     
         })
 
         df_active = df_named[df_named['Status'].astype(str).str.strip().str.lower() == 'active'].copy()
@@ -113,9 +114,14 @@ if uploaded_file is not None:
             cat = str(row['Category']).lower().strip()
             p5 = row['Price_5']
             p17 = row['Price_17']
+            p29 = row['Price_29']
 
             if cat in misc_categories:
-                final_prices.append(calculate_net_price(p5))
+                is_empty_29 = pd.isna(p29) or str(p29).strip() == ''
+                if not is_empty_29:
+                    final_prices.append(calculate_net_price(p29))
+                else:
+                    final_prices.append(calculate_net_price(p17))
             else:
                 is_empty_17 = pd.isna(p17) or str(p17).strip() == ''
                 if not is_empty_17:
@@ -133,7 +139,7 @@ if uploaded_file is not None:
         df_rms_pos = generate_pos_template(df_rms, point_name='RMS')
         df_misc_pos = generate_pos_template(df_misc, point_name='MISC')
 
-        tab1, tab2 = st.tabs(["🏨 Room Service Preview", "🧾 Miscellaneous Preview"])
+        tab1, tab2 = st.tabs(["Room Service Preview", "Miscellaneous Preview"])
 
         with tab1:
             if df_rms_pos is not None and not df_rms_pos.empty:
