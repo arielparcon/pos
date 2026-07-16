@@ -48,7 +48,6 @@ def generate_pos_template(df_subset, point_name):
 uploaded_file = st.file_uploader("Choose your CSV file", type=["csv"])
 
 if uploaded_file is not None:
-    st.success("File uploaded successfully!")
   
     uploaded_filename = uploaded_file.name
     filename_without_ext = os.path.splitext(uploaded_filename)[0]
@@ -66,7 +65,7 @@ if uploaded_file is not None:
 
         df.columns = df.columns.str.strip()
 
-        with st.expander("📋 View detected columns (for debugging)"):
+        with st.expander("(for debugging)"):
             st.write("Column names found in your file:")
             st.write(list(df.columns))
 
@@ -131,8 +130,6 @@ if uploaded_file is not None:
         
         if category_col is None:
             category_col = df.columns[5] if len(df.columns) > 5 else df.columns[0]
-
-        st.info(f"✅ Detected columns: Price(RMS)='{price_col_rms}', Price(Misc)='{price_col_misc}', Status(RMS)='{status_col_rms}', Status(Misc)='{status_col_misc}'")
 
         df_processed = pd.DataFrame({
             'Item Name': df[item_name_col].fillna('').astype(str).str.strip(),
