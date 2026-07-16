@@ -75,32 +75,59 @@ if uploaded_file is not None:
 
         num_cols = df.shape[1]
 
-        if num_cols < 29:
-            st.error(f"Your file must have at least 29 columns. Currently has: {num_cols}")
+        price_col_idx = None
+        target_price_cols = ['rm. service - wi rate', 'room service wi', 'room service']
+        
+        if has_headers:
+            for idx, col in enumerate(df.columns):
+                if str(col).lower().strip() in target_price_cols:
+                    price_col_idx = idx
+                    break
+        
+        if price_col_idx is None:
+            st.error("Could not find a price column named 'Rm. Service - WI Rate', 'Room Service WI', or 'Room Service'. Please check your CSV headers.")
+            st.stop()
+
+        status_col_idx = None
+        target_status_cols = ['rm. service - wi status', 'room service wi status', 'rm. service wi status']
+        
+        if has_headers:
+            for idx, col in enumerate(df.columns):
+                if str(col).lower().strip() in target_status_cols:
+                    status_col_idx = idx
+                    break
+        
+        if status_col_idx is None:
+            st.error("Could not find a status column named 'Rm. Service - WI Status', 'Room Service WI Status', or 'Rm. Service WI Status'. Please check your CSV headers.")
+            st.stop()
+
+        required_min_cols = max(6, price_col_idx + 1, status_col_idx + 1)
+        if num_cols < required_min_cols:
+            st.error(f"Your file must have at least {required_min_cols} columns to map all required data. Currently has: {num_cols}")
             st.stop()
 
         df_named = pd.DataFrame({
             'Item Name': df.iloc[:, 1],   
             'Category': df.iloc[:, 5],    
-            'Status': df.iloc[:, 14],     
-            'Price_5': df.iloc[:, 4],   
-            'Price_17': df.iloc[:, 16],    
-            'Price_29': df.iloc[:, 28]     
+            'Status': df.iloc[:, status_col_idx]
+            'Price_Dynamic': df.iloc[:, price_col_idx],
+            'Price_5': df.iloc[:, 4] if num_cols > 4 else [None]*len(df),  
+            'Price_17': df.iloc[:, 16] if num_cols > 16 else [None]*len(df),
+            'Price_29': df.iloc[:, 28] if num_cols > 28 else [None]*len(df) 
         })
 
         df_active = df_named[df_named['Status'].astype(str).str.strip().str.lower() == 'active'].copy()
         
         if df_active.empty:
-            st.warning("No 'active' items found in the uploaded file. Please check the 15th column (Status).")
+            st.warning(f"No 'active' items found in the uploaded file. Please check the '{df.columns[status_col_idx]}' column.")
             st.stop()
             
-        st.info(f"Found **{len(df_active)}** total active items ready for conversion.")
+        st.info(f"Found **{len(df_active)}** total active items. (Using '{df.columns[price_col_idx]}' for Price and '{df.columns[status_col_idx]}' for Status)")
 
         df_active['Item Name'] = df_active['Item Name'].fillna('').astype(str).str.strip()
         df_active['Category'] = df_active['Category'].fillna('').astype(str).str.strip()
 
         df_active.loc[df_active['Item Name'].str.contains('extra', case=False, na=False), 'Category'] = 'Extra'
-
         df_active.loc[df_active['Item Name'].str.lower().str.startswith('free'), 'Category'] = 'Free'
 
         misc_categories = ['miscellaneous', 'free', 'extra']
@@ -112,22 +139,28 @@ if uploaded_file is not None:
         final_prices = []
         for _, row in df_active.iterrows():
             cat = str(row['Category']).lower().strip()
+            p_dyn = row['Price_Dynamic']
             p5 = row['Price_5']
             p17 = row['Price_17']
             p29 = row['Price_29']
 
-            if cat in misc_categories:
-                is_empty_29 = pd.isna(p29) or str(p29).strip() == ''
-                if not is_empty_29:
-                    final_prices.append(calculate_net_price(p29))
-                else:
-                    final_prices.append(calculate_net_price(p17))
+            is_empty_dyn = pd.isna(p_dyn) or str(p_dyn).strip() == ''
+            
+            if not is_empty_dyn:
+                final_prices.append(calculate_net_price(p_dyn))
             else:
-                is_empty_17 = pd.isna(p17) or str(p17).strip() == ''
-                if not is_empty_17:
-                    final_prices.append(calculate_net_price(p17))
+                if cat in misc_categories:
+                    is_empty_29 = pd.isna(p29) or str(p29).strip() == ''
+                    if not is_empty_29:
+                        final_prices.append(calculate_net_price(p29))
+                    else:
+                        final_prices.append(calculate_net_price(p17))
                 else:
-                    final_prices.append(calculate_net_price(p5))
+                    is_empty_17 = pd.isna(p17) or str(p17).strip() == ''
+                    if not is_empty_17:
+                        final_prices.append(calculate_net_price(p17))
+                    else:
+                        final_prices.append(calculate_net_price(p5))
 
         df_active['Final_Price'] = final_prices
 
