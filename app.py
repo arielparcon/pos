@@ -7,7 +7,7 @@ st.set_page_config(page_title="POS Template Converter", layout="centered")
 st.title("POS Template Converter")
 st.markdown("""
 INSTRUCTIONS:
-1. Export the food items of the branch from the POSIST first.
+1. Export the food items of the branch from POSIST first.
 2. Import the exported CSV file here and click on the "Download Converted CSV" buttons to get the HLX pos templates.
 3. Use the downloaded CSV files to migrate the active food items into HLX.
 """)
@@ -62,80 +62,115 @@ if uploaded_file is not None:
     output_filename_misc = f"{prefix}_Miscellaneous_pos_template.csv"
 
     try:
-        df_temp = pd.read_csv(uploaded_file, nrows=5)
-        first_cell = str(df_temp.iloc[0, 0]).lower().strip()
-        has_headers = first_cell in ['item name', 'item', 'name', 'product', 'product name']
+        df = pd.read_csv(uploaded_file)
 
-        uploaded_file.seek(0)
+        df.columns = df.columns.str.strip()
+
+        with st.expander("📋 View detected columns (for debugging)"):
+            st.write("Column names found in your file:")
+            st.write(list(df.columns))
+
+        price_col_rms = None
+        for col in df.columns:
+            if col.lower() in ['rm. service - wi rate', 'room service - wi rate', 'room service wi rate']:
+                price_col_rms = col
+                break
         
-        if has_headers:
-            df = pd.read_csv(uploaded_file)
-        else:
-            df = pd.read_csv(uploaded_file, header=None)
-
-        num_cols = df.shape[1]
-
-        if num_cols < 29:
-            st.error(f"Your file must have at least 29 columns. Currently has: {num_cols}")
+        if price_col_rms is None:
+            st.error("❌ Could not find Room Service price column (Rm. Service - WI Rate or similar).")
+            st.write("Available columns:", list(df.columns))
             st.stop()
 
-        df_named = pd.DataFrame({
-            'Item Name': df.iloc[:, 1],    
-            'Category': df.iloc[:, 5], 
-            'Status': df.iloc[:, 14],     
-            'Price_5': df.iloc[:, 4],       
-            'Price_17': df.iloc[:, 16],      
-            'Price_29': df.iloc[:, 28]    
+        price_col_misc = None
+        for col in df.columns:
+            if col.lower() in ['misc - wi rate', 'miscellaneous - wi rate', 'misc wi rate']:
+                price_col_misc = col
+                break
+        
+        if price_col_misc is None:
+            st.error("❌ Could not find Miscellaneous price column (Misc - WI Rate or similar).")
+            st.write("Available columns:", list(df.columns))
+            st.stop()
+
+        status_col_rms = None
+        for col in df.columns:
+            if col.lower() in ['rm. service - wi status', 'room service - wi status', 'room service wi status']:
+                status_col_rms = col
+                break
+        
+        if status_col_rms is None:
+            st.error("❌ Could not find Room Service status column (Rm. Service - WI Status or similar).")
+            st.write("Available columns:", list(df.columns))
+            st.stop()
+
+        status_col_misc = None
+        for col in df.columns:
+            if col.lower() in ['misc - wi status', 'miscellaneous - wi status', 'misc wi status']:
+                status_col_misc = col
+                break
+        
+        if status_col_misc is None:
+            st.error("❌ Could not find Miscellaneous status column (Misc - WI Status or similar).")
+            st.write("Available columns:", list(df.columns))
+            st.stop()
+
+        item_name_col = None
+        for col in df.columns:
+            if 'item name' in col.lower() or 'itemnam' in col.lower() or col.lower() == 'item':
+                item_name_col = col
+                break
+        
+        if item_name_col is None:
+            item_name_col = df.columns[1] if len(df.columns) > 1 else df.columns[0]
+
+        category_col = None
+        for col in df.columns:
+            if 'category' in col.lower():
+                category_col = col
+                break
+        
+        if category_col is None:
+            category_col = df.columns[5] if len(df.columns) > 5 else df.columns[0]
+
+        st.info(f"✅ Detected columns: Price(RMS)='{price_col_rms}', Price(Misc)='{price_col_misc}', Status(RMS)='{status_col_rms}', Status(Misc)='{status_col_misc}'")
+
+        df_processed = pd.DataFrame({
+            'Item Name': df[item_name_col].fillna('').astype(str).str.strip(),
+            'Category': df[category_col].fillna('').astype(str).str.strip(),
+            'Price_RMS': df[price_col_rms],
+            'Price_Misc': df[price_col_misc],
+            'Status_RMS': df[status_col_rms].astype(str).str.strip().str.lower(),
+            'Status_Misc': df[status_col_misc].astype(str).str.strip().str.lower()
         })
 
-        df_active = df_named[df_named['Status'].astype(str).str.strip().str.lower() == 'active'].copy()
-        
-        if df_active.empty:
-            st.warning("No 'active' items found in the uploaded file. Please check the 15th column (Status).")
-            st.stop()
-            
-        st.info(f"Found **{len(df_active)}** total active items ready for conversion.")
-
-        df_active['Item Name'] = df_active['Item Name'].fillna('').astype(str).str.strip()
-        df_active['Category'] = df_active['Category'].fillna('').astype(str).str.strip()
-
-        df_active.loc[df_active['Item Name'].str.contains('extra', case=False, na=False), 'Category'] = 'Extra'
-
-        df_active.loc[df_active['Item Name'].str.lower().str.startswith('free'), 'Category'] = 'Free'
+        df_processed.loc[df_processed['Item Name'].str.contains('extra', case=False, na=False), 'Category'] = 'Extra'
 
         misc_categories = ['miscellaneous', 'free', 'extra']
-        is_misc = df_active['Category'].str.lower().str.strip().isin(misc_categories)
-        
-        df_misc = df_active[is_misc].copy()
-        df_rms = df_active[~is_misc].copy()
+        df_processed['Is_Misc'] = df_processed['Category'].str.lower().str.strip().isin(misc_categories)
 
-        final_prices = []
-        for _, row in df_active.iterrows():
-            cat = str(row['Category']).lower().strip()
-            p5 = row['Price_5']
-            p17 = row['Price_17']
-            p29 = row['Price_29']
+        df_rms = df_processed[~df_processed['Is_Misc']].copy()
+        df_rms = df_rms[df_rms['Status_RMS'] == 'active'].copy()
 
-            if cat in misc_categories:
-                is_empty_29 = pd.isna(p29) or str(p29).strip() == ''
-                if not is_empty_29:
-                    final_prices.append(calculate_net_price(p29))
-                else:
-                    final_prices.append(calculate_net_price(p17))
+        df_misc = df_processed[df_processed['Is_Misc']].copy()
+        df_misc = df_misc[df_misc['Status_Misc'] == 'active'].copy()
+
+        def assign_final_price(row, is_misc):
+            if is_misc:
+                price_val = row['Price_Misc']
             else:
-                is_empty_17 = pd.isna(p17) or str(p17).strip() == ''
-                if not is_empty_17:
-                    final_prices.append(calculate_net_price(p17))
-                else:
-                    final_prices.append(calculate_net_price(p5))
+                price_val = row['Price_RMS']
+            
+            if pd.isna(price_val) or str(price_val).strip() == '':
+                return '0'
+            try:
+                return f"{float(price_val) / 1.12:.6f}"
+            except (ValueError, TypeError):
+                return '0'
 
+        df_rms['Final_Price'] = df_rms.apply(lambda row: assign_final_price(row, is_misc=False), axis=1)
+        df_misc['Final_Price'] = df_misc.apply(lambda row: assign_final_price(row, is_misc=True), axis=1)
 
-        df_active['Final_Price'] = final_prices
-        
-        df_misc = df_active[is_misc].copy()
-        df_rms = df_active[~is_misc].copy()
-
-        st.success(f"Split successful: **{len(df_rms)}** items for Room Service, **{len(df_misc)}** items for Miscellaneous.")
+        st.success(f"✅ Processed: **{len(df_rms)}** Room Service items, **{len(df_misc)}** Miscellaneous items")
 
         df_rms_pos = generate_pos_template(df_rms, point_name='RMS')
         df_misc_pos = generate_pos_template(df_misc, point_name='MISC')
@@ -175,7 +210,7 @@ if uploaded_file is not None:
                     type="secondary"
                 )
             else:
-                st.warning("No items matched the criteria for Miscellaneous (Free, Extra, or Miscellaneous).")
+                st.warning("No items matched the criteria for Miscellaneous.")
         
     except Exception as e:
         st.error(f"An error occurred while processing the file: {e}")
