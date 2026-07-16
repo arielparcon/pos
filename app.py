@@ -76,7 +76,7 @@ if uploaded_file is not None:
         num_cols = df.shape[1]
 
         price_col_idx = None
-        target_price_cols = ['rm. service - wi rate', 'room service wi', 'room service']
+        target_price_cols = ['Rm. Service - WI Rate', 'Room Service WI', 'Room Service']
         
         if has_headers:
             for idx, col in enumerate(df.columns):
