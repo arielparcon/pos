@@ -109,7 +109,7 @@ if uploaded_file is not None:
         df_named = pd.DataFrame({
             'Item Name': df.iloc[:, 1],   
             'Category': df.iloc[:, 5],    
-            'Status': df.iloc[:, status_col_idx]
+            'Status': df.iloc[:, status_col_idx],
             'Price_Dynamic': df.iloc[:, price_col_idx],
             'Price_5': df.iloc[:, 4] if num_cols > 4 else [None]*len(df),  
             'Price_17': df.iloc[:, 16] if num_cols > 16 else [None]*len(df),
