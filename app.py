@@ -71,7 +71,7 @@ if uploaded_file is not None:
 
         price_col_rms = None
         for col in df.columns:
-            if col.lower() in ['rm. service - wi rate', 'room service - wi rate', 'room service wi rate', 'room Service rate']:
+            if col.lower() in ['rm. service - wi rate', 'room service - wi rate', 'room service wi rate', 'room service rate']:
                 price_col_rms = col
                 break
         
