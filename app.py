@@ -82,7 +82,7 @@ if uploaded_file is not None:
 
         price_col_misc = None
         for col in df.columns:
-            if col.lower() in ['misc - wi rate', 'miscellaneous - wi rate', 'misc wi rate', 'miscellaneous rate']:
+            if col.lower() in ['misc - wi rate', 'miscellaneous - wi rate', 'misc wi rate', 'miscellaneous rate', 'lobby rate']:
                 price_col_misc = col
                 break
         
@@ -104,7 +104,7 @@ if uploaded_file is not None:
 
         status_col_misc = None
         for col in df.columns:
-            if col.lower() in ['misc - wi status', 'miscellaneous - wi status', 'misc wi status', 'miscellaneous status']:
+            if col.lower() in ['misc - wi status', 'miscellaneous - wi status', 'misc wi status', 'miscellaneous status', 'lobby status']:
                 status_col_misc = col
                 break
         
