@@ -71,7 +71,7 @@ if uploaded_file is not None:
 
         price_col_rms = None
         for col in df.columns:
-            if col.lower() in ['rm. service - wi rate', 'room service - wi rate', 'room service wi rate']:
+            if col.lower() in ['rm. service - wi rate', 'room service - wi rate', 'room service wi rate', 'Room Service Rate']:
                 price_col_rms = col
                 break
         
@@ -82,7 +82,7 @@ if uploaded_file is not None:
 
         price_col_misc = None
         for col in df.columns:
-            if col.lower() in ['misc - wi rate', 'miscellaneous - wi rate', 'misc wi rate']:
+            if col.lower() in ['misc - wi rate', 'miscellaneous - wi rate', 'misc wi rate', 'Miscellaneous Rate']:
                 price_col_misc = col
                 break
         
@@ -93,7 +93,7 @@ if uploaded_file is not None:
 
         status_col_rms = None
         for col in df.columns:
-            if col.lower() in ['rm. service - wi status', 'room service - wi status', 'room service wi status']:
+            if col.lower() in ['rm. service - wi status', 'room service - wi status', 'room service wi status', 'Room Service Status']:
                 status_col_rms = col
                 break
         
@@ -104,7 +104,7 @@ if uploaded_file is not None:
 
         status_col_misc = None
         for col in df.columns:
-            if col.lower() in ['misc - wi status', 'miscellaneous - wi status', 'misc wi status']:
+            if col.lower() in ['misc - wi status', 'miscellaneous - wi status', 'misc wi status', 'Miscellaneous Status']:
                 status_col_misc = col
                 break
         
