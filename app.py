@@ -132,6 +132,8 @@ if uploaded_file is not None:
 
         df_processed.loc[df_processed['Item Name'].str.contains('extra', case=False, na=False), 'Category'] = 'Extra'
         df_processed.loc[df_processed['Item Name'].str.contains('miscellaneous', case=False, na=False), 'Category'] = 'Miscellaneous'
+        df_processed.loc[df_processed['Item Name'].str.contains('massage', case=False, na=False), 'Category'] = 'Massage'
+        df_processed.loc[df_processed['Item Name'].str.contains('free', case=False, na=False), 'Category'] = 'Free'
         df_processed.loc[df_processed['Item Name'].str.lower().str.startswith('free'), 'Category'] = 'Free'
         df_processed.loc[df_processed['Item Name'].str.lower().str.startswith('massage'), 'Category'] = 'Massage'
 
