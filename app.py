@@ -131,9 +131,10 @@ if uploaded_file is not None:
         })
 
         df_processed.loc[df_processed['Item Name'].str.contains('extra', case=False, na=False), 'Category'] = 'Extra'
+        df_processed.loc[df_processed['Item Name'].str.contains('extra', case=False, na=False), 'Category'] = 'Miscellaneous'
         df_processed.loc[df_processed['Item Name'].str.lower().str.startswith('free'), 'Category'] = 'Free'
 
-        df_processed['Is_Free_Or_Extra'] = df_processed['Category'].str.lower().str.strip().isin(['free', 'extra'])
+        df_processed['Is_Free_Or_Extra'] = df_processed['Category'].str.lower().str.strip().isin(['free', 'extra', 'Miscellaneous'])
 
         outlet_dfs = {}
         for outlet_name in outlets.keys():
