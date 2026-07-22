@@ -62,10 +62,6 @@ if uploaded_file is not None:
         df = pd.read_csv(uploaded_file)
         df.columns = df.columns.str.strip()
 
-        with st.expander("📋 View detected columns (for debugging)"):
-            st.write("Column names found in your file:")
-            st.write(list(df.columns))
-
         outlets = {
             'Room Service': 'RMS',
             'Blue Room': 'BLR',
