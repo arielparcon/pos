@@ -67,15 +67,15 @@ if uploaded_file is not None:
             st.write(list(df.columns))
 
         outlets = {
-            'Room Service': 'RMS',
-            'Blue Room': 'BLR',
-            'Cafe Josefina': 'CJF',
-            'Pool Bar': 'POB',
-            'Entree': 'ENT',
-            'Casino': 'CAS',
-            'Paymaster': 'PAY',
-            'Mini Bar': 'MIB',
-            'Miscellaneous': 'MISC'
+            'Room Service': 'RMSWI',
+            'All Day Dining': 'ALLDAY',
+            'Breakfast Buffet Set': 'BRKBUFF',
+            'France': 'FRANC',
+            'Miscellaneous': 'MISCWI',
+            'Lobby': 'LOBBY',
+            'Germany': 'GERM',
+            'Massage': 'MSSG',
+            'KTV': 'KV'
         }
 
         item_name_col = None
