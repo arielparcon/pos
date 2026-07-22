@@ -4,7 +4,7 @@ import os
 
 st.set_page_config(page_title="POS Template Converter", layout="centered")
 
-st.title("POS Template Converter")
+st.title("APOVIEW POS Template Converter")
 st.markdown("""
 INSTRUCTIONS:
 1. Export the food items of the branch from POSIST first.
@@ -157,7 +157,7 @@ if uploaded_file is not None:
         if not active_outlets:
             st.warning("No active items found for any of the requested outlets.")
         else:
-            tabs = st.tabs([f"🏨 {outlet} Preview" for outlet in active_outlets])
+            tabs = st.tabs([f"{outlet} Preview" for outlet in active_outlets])
 
             for i, outlet_name in enumerate(active_outlets):
                 with tabs[i]:
