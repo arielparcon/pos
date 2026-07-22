@@ -63,7 +63,7 @@ if uploaded_file is not None:
         df.columns = df.columns.str.strip()
 
         outlets = {
-            'Room Service': 'RMS',
+            'Room Service': 'RMSWI',
             'All Day Dining': 'ALLDAY',
             'Breakfast Buffet Set': 'BRKBUFF',
             'France': 'FRANC',
