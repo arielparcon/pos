@@ -4,7 +4,7 @@ import os
 
 st.set_page_config(page_title="POS Template Converter", layout="centered")
 
-st.title("APOVIEW POS Template Converter")
+st.title("POS Template Converter")
 st.markdown("""
 INSTRUCTIONS:
 1. Export the food items of the branch from POSIST first.
@@ -62,7 +62,7 @@ if uploaded_file is not None:
         df = pd.read_csv(uploaded_file)
         df.columns = df.columns.str.strip()
 
-        outlets = {
+            outlets = {
             'Room Service': 'RMSWI',
             'All Day Dining': 'ALLDAY',
             'Breakfast Buffet Set': 'BRKBUFF',
@@ -90,6 +90,7 @@ if uploaded_file is not None:
         if category_col is None:
             category_col = df.columns[5] if len(df.columns) > 5 else df.columns[0]
 
+        # Find Rate and Status columns for each outlet
         outlet_cols = {}
         for outlet_name in outlets.keys():
             rate_col = None
@@ -132,6 +133,8 @@ if uploaded_file is not None:
         df_processed.loc[df_processed['Item Name'].str.contains('extra', case=False, na=False), 'Category'] = 'Extra'
         df_processed.loc[df_processed['Item Name'].str.lower().str.startswith('free'), 'Category'] = 'Free'
 
+        df_processed['Is_Free_Or_Extra'] = df_processed['Category'].str.lower().str.strip().isin(['free', 'extra'])
+
         outlet_dfs = {}
         for outlet_name in outlets.keys():
             rate_col = outlet_cols[outlet_name]['rate']
@@ -143,9 +146,16 @@ if uploaded_file is not None:
 
             df_outlet = df_outlet[df_outlet['Status'] == 'active'].copy()
 
+            if outlet_name != 'Miscellaneous':
+                df_outlet = df_outlet[~df_outlet['Is_Free_Or_Extra']].copy()
+
             df_outlet['Final_Price'] = df_outlet['Price'].apply(calculate_net_price)
             
             outlet_dfs[outlet_name] = df_outlet
+
+        total_items = len(df_processed)
+        free_extra_count = df_processed['Is_Free_Or_Extra'].sum()
+        st.info(f"📊 Total items: **{total_items}** | Free/Extra items: **{free_extra_count}** (will only appear in Miscellaneous)")
 
         st.success(f"✅ Processed items for {len(outlet_dfs)} outlets.")
 
@@ -166,6 +176,9 @@ if uploaded_file is not None:
                         st.dataframe(df_pos.head(10))
                         if len(df_pos) > 10:
                             st.caption(f"... and {len(df_pos) - 10} more rows.")
+ 
+                        category_counts = df_outlet['Category'].value_counts()
+                        st.caption(f"Categories in this outlet: {dict(category_counts)}")
 
                         file_name = f"{prefix}_{outlet_name.replace(' ', '')}_pos_template.csv"
                         csv_data = df_pos.to_csv(index=False).encode('utf-8')
