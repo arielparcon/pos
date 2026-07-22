@@ -62,7 +62,7 @@ if uploaded_file is not None:
         df = pd.read_csv(uploaded_file)
         df.columns = df.columns.str.strip()
 
-            outlets = {
+        outlets = {
             'Room Service': 'RMSWI',
             'All Day Dining': 'ALLDAY',
             'Breakfast Buffet Set': 'BRKBUFF',
