@@ -155,7 +155,6 @@ if uploaded_file is not None:
 
         total_items = len(df_processed)
         free_extra_count = df_processed['Is_Free_Or_Extra'].sum()
-        st.info(f"📊 Total items: **{total_items}** | Free/Extra items: **{free_extra_count}** (will only appear in Miscellaneous)")
 
         st.success(f"✅ Processed items for {len(outlet_dfs)} outlets.")
 
