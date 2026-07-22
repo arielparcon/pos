@@ -4,7 +4,7 @@ import os
 
 st.set_page_config(page_title="POS Template Converter", layout="centered")
 
-st.title("POS Template Converter")
+st.title("APOVIEW POS Template Converter")
 st.markdown("""
 INSTRUCTIONS:
 1. Export the food items of the branch from POSIST first.
@@ -62,20 +62,15 @@ if uploaded_file is not None:
         df = pd.read_csv(uploaded_file)
         df.columns = df.columns.str.strip()
 
-        with st.expander("📋 View detected columns (for debugging)"):
-            st.write("Column names found in your file:")
-            st.write(list(df.columns))
-
         outlets = {
-            'Room Service': 'RMSWI',
-            'All Day Dining': 'ALLDAY',
-            'Breakfast Buffet Set': 'BRKBUFF',
-            'France': 'FRANC',
-            'Miscellaneous': 'MISCWI',
-            'Lobby': 'LOBBY',
-            'Germany': 'GERM',
-            'Massage': 'MSSG',
-            'KTV': 'KV'
+            'Room Service': 'RMS',
+            'Blue Room': 'BLR',
+            'Cafe Josefina': 'CJF',
+            'Pool Bar': 'POB',
+            'Entree': 'ENT',
+            'Casino': 'CAS',
+            'Paymaster': 'PAY',
+            'Mini Bar': 'MIB'
         }
 
         item_name_col = None
@@ -124,7 +119,7 @@ if uploaded_file is not None:
                 missing_cols.append(f"{outlet_name} Status")
                 
         if missing_cols:
-            st.error(f" Could not find the following columns: {', '.join(missing_cols)}")
+            st.error(f"❌ Could not find the following columns: {', '.join(missing_cols)}")
             st.write("Available columns:", list(df.columns))
             st.stop()
 
@@ -136,9 +131,6 @@ if uploaded_file is not None:
         df_processed.loc[df_processed['Item Name'].str.contains('extra', case=False, na=False), 'Category'] = 'Extra'
         df_processed.loc[df_processed['Item Name'].str.lower().str.startswith('free'), 'Category'] = 'Free'
 
-        misc_only_categories = ['free', 'extra', 'massage', 'miscellaneous']
-        df_processed['Is_Misc_Only'] = df_processed['Category'].str.lower().str.strip().isin(misc_only_categories)
-
         outlet_dfs = {}
         for outlet_name in outlets.keys():
             rate_col = outlet_cols[outlet_name]['rate']
@@ -149,9 +141,6 @@ if uploaded_file is not None:
             df_outlet['Price'] = df[rate_col]
 
             df_outlet = df_outlet[df_outlet['Status'] == 'active'].copy()
-
-            if outlet_name != 'Miscellaneous':
-                df_outlet = df_outlet[~df_outlet['Is_Misc_Only']].copy()
 
             df_outlet['Final_Price'] = df_outlet['Price'].apply(calculate_net_price)
             
@@ -176,7 +165,7 @@ if uploaded_file is not None:
                         st.dataframe(df_pos.head(10))
                         if len(df_pos) > 10:
                             st.caption(f"... and {len(df_pos) - 10} more rows.")
-                        
+
                         file_name = f"{prefix}_{outlet_name.replace(' ', '')}_pos_template.csv"
                         csv_data = df_pos.to_csv(index=False).encode('utf-8')
                         
