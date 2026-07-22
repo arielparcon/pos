@@ -175,9 +175,6 @@ if uploaded_file is not None:
                         st.dataframe(df_pos.head(10))
                         if len(df_pos) > 10:
                             st.caption(f"... and {len(df_pos) - 10} more rows.")
- 
-                        category_counts = df_outlet['Category'].value_counts()
-                        st.caption(f"Categories in this outlet: {dict(category_counts)}")
 
                         file_name = f"{prefix}_{outlet_name.replace(' ', '')}_pos_template.csv"
                         csv_data = df_pos.to_csv(index=False).encode('utf-8')
