@@ -63,14 +63,10 @@ if uploaded_file is not None:
         df.columns = df.columns.str.strip()
 
         outlets = {
-            'Room Service': 'RMS',
-            'Blue Room': 'BLR',
-            'Cafe Josefina': 'CJF',
-            'Pool Bar': 'POB',
-            'Entree': 'ENT',
-            'Casino': 'CAS',
-            'Paymaster': 'PAY',
-            'Mini Bar': 'MIB'
+            'Room Service - WI': 'RMSWI',
+            'Room Service - DI': 'RMSDI',
+            'Miscellaneous - DI': 'MISCDI',
+            'Miscellaneous - WI': 'MISCWI',
         }
 
         item_name_col = None
