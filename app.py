@@ -4,7 +4,7 @@ import os
 
 st.set_page_config(page_title="POS Template Converter", layout="centered")
 
-st.title("APOVIEW POS Template Converter")
+st.title("SOGO POS Template Converter")
 st.markdown("""
 INSTRUCTIONS:
 1. Export the food items of the branch from POSIST first.
